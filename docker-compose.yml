@@ -1,0 +1,51 @@
+# Multimodal E-Commerce AI Pipeline — one-command launch.
+#
+# Usage:
+#   docker compose up --build
+#
+# This runs the four pipeline stages once (ingestion -> AI enrichment ->
+# video generation -> data quality checks) and then starts the Streamlit
+# dashboard on http://localhost:8501, pointed at the same SQLite file via
+# a shared volume so the dashboard reflects exactly what the pipeline run
+# produced.
+#
+# Real API keys are optional: without ANTHROPIC_API_KEY/OPENAI_API_KEY and
+# HIGGSFIELD_API_KEY set in your .env, the pipeline automatically falls
+# back to deterministic mock clients (see src/ai_pipeline.py and
+# src/video_generator.py), so `docker compose up` works out of the box
+# with zero configuration.
+
+services:
+  pipeline:
+    build: .
+    container_name: ecommerce_pipeline_runner
+    env_file:
+      - .env
+    environment:
+      - PIPELINE_DB_PATH=/app/data/raw_warehouse.db
+    volumes:
+      - ./data:/app/data
+    command: >
+      sh -c "
+        python -m src.ingestion --reset &&
+        python -m src.ai_pipeline &&
+        python -m src.video_generator &&
+        python -m src.quality_checks --stage all
+      "
+    restart: "no"
+
+  dashboard:
+    build: .
+    container_name: ecommerce_dashboard
+    env_file:
+      - .env
+    environment:
+      - PIPELINE_DB_PATH=/app/data/raw_warehouse.db
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8501:8501"
+    depends_on:
+      pipeline:
+        condition: service_completed_successfully
+    restart: unless-stopped

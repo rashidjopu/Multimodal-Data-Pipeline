@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.rtf
+.DS_Store
+data/raw/.DS_Store
+orchestration/.DS_Store
+.airflow/
+*.log
+data/processed/enrichment_dead_letter.jsonl
